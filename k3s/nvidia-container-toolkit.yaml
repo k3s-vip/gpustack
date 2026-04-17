@@ -1,0 +1,57 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: nvidia-container-toolkit
+  namespace: default
+spec:
+  revisionHistoryLimit: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nvidia-container-toolkit
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nvidia-container-toolkit
+    spec:
+      containers:
+        - command:
+            - sh
+            - -ec
+            - deviceQuery && exec sleep inf
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: all
+          image: muicoder/containers:v1.19.0
+          name: nvidia-cuda-sample
+      enableServiceLinks: false
+      hostNetwork: true
+      hostPID: true
+      initContainers:
+        - command:
+            - sh
+            - -ec
+            - echo $BASE64 | base64 -d | sh || exec sleep inf
+          env:
+            - name: BASE64
+              value: IyEvYmluL3NoCnNldCAtZXUKcmVhZG9ubHkgTkVXUk9PVD0ke05FV1JPT1Q6LS9ob3N0fQpjaHJvb3QgJE5FV1JPT1QgbnZpZGlhLXNtaSAtLWxpc3QtZ3B1cwpWRVI9JChmaW5kIGxpYm52aWRpYS1jb250YWluZXIxLTEuKiB8IGF3ayAtRi0gJ3twcmludCAkKE5GLTEpfScpCmlmIGNocm9vdCAkTkVXUk9PVCBncmVwICRWRVIgL3Vzci9iaW4vbnZpZGlhLWNvbnRhaW5lci1jbGkgPi9kZXYvbnVsbCAyPiYxOyB0aGVuCiAgY2F0IDw8RU9GIHwgY2hyb290ICRORVdST09UIHNoIC1ldQpudmlkaWEtY29udGFpbmVyLWNsaSAtLXZlcnNpb24KbnZpZGlhLWN0ayAtLXF1aWV0IGNkaSBsaXN0CkVPRgogIGNhdCA8PFxFT0YgfCBjaHJvb3QgJE5FV1JPT1QgYmFzaCAtZXVvIHBpcGVmYWlsCmV4cG9ydCBLVUJFQ09ORklHPSQocGdyZXAga3ViZWxldCAtYSB8IHNlZCAnc34gflxufmcnIHwgZ3JlcCAiXC1cLWt1YmVjb25maWc9IiB8IGF3ayAtRj0gJ3twcmludCAkTkZ9JykKaWYgWyAteiAkS1VCRUNPTkZJRyBdOyB0aGVuIGV4cG9ydCBLVUJFQ09ORklHPS9ldGMvcmFuY2hlci9rM3MvYWdlbnQva3ViZWxldC5rdWJlY29uZmlnO2ZpCmt1YmVjdGwgdmVyc2lvbiAtbz15YW1sCmV4cG9ydCBHRkQ9L2V0Yy9rdWJlcm5ldGVzL25vZGUtZmVhdHVyZS1kaXNjb3ZlcnkvZmVhdHVyZXMuZC9nZmQKaWYgZ3JlcCAtcSBOVklESUEgJEdGRDsgdGhlbiA8JEdGRCB4YXJncyBrdWJlY3RsIGxhYmVsIG5vZGUgLS1vdmVyd3JpdGUgJChob3N0bmFtZSk7IGZpCkVPRgogIGV4aXQKZWxpZiBbIC14ICRORVdST09UL3Vzci9iaW4vZHBrZyBdOyB0aGVuCiAgcmVhZG9ubHkgUGFja2FnZVR5cGU9ZGViIFNlcD1fCmVsaWYgWyAteCAkTkVXUk9PVC91c3IvYmluL3JwbSBdOyB0aGVuCiAgcmVhZG9ubHkgUGFja2FnZVR5cGU9cnBtIFNlcD0tCmVsc2UKICBjYXQgJE5FV1JPT1QvZXRjL29zLXJlbGVhc2UKICBlY2hvCiAgZWNobyBVbnN1cHBvcnRlZCBQYWNrYWdlVHlwZQogIGV4aXQgMQpmaQpJTlNST09UPS90bXAvJChkYXRlICslcylfJCQKbWtkaXIgLXAgJE5FV1JPT1QkSU5TUk9PVApmb3IgUGFja2FnZSBpbiAibGlibnZpZGlhLWNvbnRhaW5lcjEke1NlcH0xKi4kUGFja2FnZVR5cGUiIFwKICAibGlibnZpZGlhLWNvbnRhaW5lci10b29scyR7U2VwfTEqLiRQYWNrYWdlVHlwZSIgXAogICJudmlkaWEtY29udGFpbmVyLXRvb2xraXQtYmFzZSR7U2VwfTEqLiRQYWNrYWdlVHlwZSIgXAogICJudmlkaWEtY29udGFpbmVyLXRvb2xraXQtb3BlcmF0b3ItZXh0ZW5zaW9ucyR7U2VwfTEqLiRQYWNrYWdlVHlwZSIgXAogICJudmlkaWEtY29udGFpbmVyLXRvb2xraXQke1NlcH0xKi4kUGFja2FnZVR5cGUiOyBkbwogIGNwIC1hdSAkUGFja2FnZSAkTkVXUk9PVCRJTlNST09UCiAgY2FzZSAkUGFja2FnZVR5cGUgaW4KICBkZWIpCiAgICBjaHJvb3QgJE5FV1JPT1Qgc2ggLWV1YyAiZHBrZyAtaSAkSU5TUk9PVC8kUGFja2FnZSIKICAgIDs7CiAgcnBtKQogICAgY2FzZSAkUGFja2FnZSBpbgogICAgbGlibnZpZGlhLWNvbnRhaW5lcjEke1NlcH0xKi4kUGFja2FnZVR5cGUpCiAgICAgIGNocm9vdCAkTkVXUk9PVCBzaCAtZXVjICJycG0gLWlVdiAkSU5TUk9PVC8kUGFja2FnZSAtLW5vZGVwcyIKICAgICAgOzsKICAgICopCiAgICAgIGNocm9vdCAkTkVXUk9PVCBzaCAtZXVjICJycG0gLWlVdiAkSU5TUk9PVC8kUGFja2FnZSIKICAgICAgOzsKICAgIGVzYWMKICAgIDs7CiAgZXNhYwpkb25lCnJtIC1yZiAkTkVXUk9PVCRJTlNST09UCmNhdCA8PFxFT0YgfCBjaHJvb3QgJE5FV1JPT1QgYmFzaCAtZXVvIHBpcGVmYWlsCnNvY2s9JChwZ3JlcCBrdWJlbGV0IC1hIHwgc2VkICdzfiB+XG5+ZycgfCBncmVwICJcLVwtY29udGFpbmVyLXJ1bnRpbWUtZW5kcG9pbnQ9IiB8IGF3ayAtRj0gJ3twcmludCAkTkZ9JyB8fCB0cnVlKQppZiBbICIke3NvY2sjIyoufSIgPSBzb2NrIF07IHRoZW4gZXhwb3J0IENPTlRBSU5FUl9SVU5USU1FX0VORFBPSU5UPSRzb2NrOyBmaQpjcmljdGwgdmVyc2lvbgpydW50aW1lPSQoZWNobyAkc29jayB8IGF3ayAtRi8gJ3twcmludCAkTkZ9JyB8fCB0cnVlKQpjYXNlICR7cnVudGltZSUuKn0gaW4KY29udGFpbmVyZCB8IGNyaW8gfCBkb2NrZXIpCiAgbnZpZGlhLWN0ayBydW50aW1lIGNvbmZpZ3VyZSAtLW52aWRpYS1zZXQtYXMtZGVmYXVsdCAtLXJ1bnRpbWU9JHtydW50aW1lJS4qfQogIG5zZW50ZXIgLXQgMSAtbSAtcCBzeXN0ZW1jdGwgcmVzdGFydCAke3J1bnRpbWUlLip9CiAgOzsKZXNhYwpleHBvcnQgTlZJRElBX0NUS19RVUlFVD10cnVlIE5WSURJQV9DVEtfQ0RJX0dFTkVSQVRFX0RJU0FCTEVEX0hPT0tTPWFsbCBOVklESUFfQ1RLX0NESV9PVVRQVVRfRklMRV9QQVRIPS92YXIvcnVuL2NkaS9udmlkaWEueWFtbApudmlkaWEtY3RrIGNkaSBnZW5lcmF0ZQpFT0YK
+          image: muicoder/containers:v1.19.0
+          name: nvidia-container-toolkit
+          securityContext:
+            privileged: true
+            seLinuxOptions:
+              level: s0
+          volumeMounts:
+            - mountPath: /host
+              name: host
+      nodeSelector:
+        kubernetes.io/os: linux
+      #runtimeClassName: nvidia
+      priorityClassName: system-node-critical
+      tolerations:
+        - operator: Exists
+      volumes:
+        - hostPath:
+            path: /
+            type: Directory
+          name: host

@@ -1,0 +1,177 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: gpustack-server
+  name: gpustack-server
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gpustack-server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gpustack-server
+    spec:
+      containers:
+        - args:
+            - --disable-openapi-docs
+            - --disable-update-check
+            - --gateway-mode=embedded
+          command:
+            - sh
+            - -ce
+            - |
+              cd .bin
+              cp -a *_tmpl.json golang-filter.so /var/lib/istio/envoy/
+              cp -a apiserver higress pilot-discovery pilot-agent envoy supercronic-*-* /usr/local/bin/
+              f=/etc/gpustack/data/defaultConfig/services/higress-gateway.yaml
+              sed -i "s~80~$GATEWAY_HTTP_PORT~g;s~443~$GATEWAY_HTTPS_PORT~g" "$f"
+              f=/etc/s6-overlay/s6-rc.d/pilot/run
+              sed -i "s~monitoringAddr=~monitoringAddr=localhost:15014~g" "$f"
+              PYTHON_GPUSTACK=/usr/local/lib/python$PYTHON_VERSION/dist-packages/gpustack
+              f=$PYTHON_GPUSTACK/utils/network.py
+              sed -i "s~8.8.8.8~1.2.4.8~g;s~2001:4860:4860::8888~2001:dc7:1000::1~g" "$f"
+              f=$PYTHON_GPUSTACK/security.py
+              #sed -i -E "s~(API_KEY_PREFIX = ).+~\1\"ai\"~g" "$f"
+              exec /usr/bin/entrypoint.sh --port=$(GATEWAY_HTTP_PORT) --tls-port=$(GATEWAY_HTTPS_PORT) --gateway-concurrency=`nproc` "$@"
+          env:
+            - name: GPUSTACK_BOOTSTRAP_PASSWORD
+              value: passw0rd
+            - name: GPUSTACK_SYSTEM_DEFAULT_CONTAINER_REGISTRY
+              value: swr.cn-south-1.myhuaweicloud.com
+            - name: GATEWAY_HTTP_PORT
+              value: "8000"
+            - name: GATEWAY_HTTPS_PORT
+              value: "8443"
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.1.2
+          livenessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 15021 # EnvoyHealth
+            initialDelaySeconds: 300
+            timeoutSeconds: 3
+          name: gpustack
+          ports:
+            - containerPort: 8000
+              name: http
+            - containerPort: 8443
+              name: https
+            - containerPort: 10161
+              name: metrics
+          readinessProbe:
+            httpGet:
+              port: http
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: data
+            - mountPath: /var/lib/gpustack/cache
+              name: models
+          workingDir: /var/lib/gpustack
+        - command:
+            - sh
+            - -ce
+            - |
+              until curl 127.0.0.1:15021/healthz/ready >/dev/null 2>&1; do sleep 5; done
+              sed -i -E "s~user: [^a-z]+~user:\n      username: admin\n      password: passw0rd~" $HIGRESS_CONSOLE_KUBE_CONFIG
+              exec java $JVM_ARGS -jar /app/higress-console.jar || sleep inf
+          env:
+            - name: HIGRESS_CONSOLE_KUBE_CONFIG
+              value: /higress/kubeconfig
+            - name: SPRINGDOC_API_DOCS_ENABLED
+              value: "true"
+            - name: SPRINGDOC_SWAGGER_UI_ENABLED # /swagger-ui/index.html
+              value: "true"
+            - name: JVM_ARGS
+              value: -XX:+UnlockDiagnosticVMOptions -XX:-UseAESCTRIntrinsics
+          image: docker.1ms.run/muicoder/java:11
+          name: higress-console
+          volumeMounts:
+            - mountPath: /app
+              name: data
+              subPath: .bin
+            - mountPath: /higress
+              name: data
+              subPath: higress
+      enableServiceLinks: false
+      hostNetwork: true
+      initContainers:
+        - command:
+            - sh
+            - -ce
+            - cp -auv /apiserver . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/api-server:0.0.29
+          name: api-server
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: .bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -auv /usr/local/bin/higress . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/higress:v2.2.1
+          name: higress
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: .bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -auv /usr/local/bin/pilot-discovery . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/pilot:v2.2.1
+          name: pilot
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: .bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -auv /usr/local/bin/pilot-agent /usr/local/bin/envoy /usr/local/bin/supercronic-*-* /var/lib/istio/envoy/* . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/gateway:v2.2.1
+          name: gateway
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: .bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -auv /app/higress-console.jar /app/tools . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/console:v2.2.1
+          name: console
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: .bin
+          workingDir: /data
+      nodeSelector:
+        kubernetes.io/hostname: lts
+      securityContext:
+        runAsGroup: 0
+        runAsNonRoot: false
+        runAsUser: 0
+      shareProcessNamespace: false # s6-overlay-suexec: fatal: can only run as pid 1
+      volumes:
+        - hostPath:
+            path: /data/gpustack
+            type: DirectoryOrCreate
+          name: data
+        - hostPath:
+            path: /data/models
+            type: DirectoryOrCreate
+          name: models

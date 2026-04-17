@@ -118,9 +118,9 @@ def get_ifname_by_ip_hostname(
         (address_family, ip_address_hostname),
     ]
     if address_family == socket.AF_INET:
-        cases.append((socket.AF_INET, "8.8.8.8"))
+        cases.append((socket.AF_INET, "1.2.4.8"))
     if address_family == socket.AF_INET6:
-        cases.append((socket.AF_INET6, "2001:4860:4860::8888"))
+        cases.append((socket.AF_INET6, "2001:dc7:1000::1"))
 
     for af, test_ip in cases:
         with contextlib.suppress(Exception):
