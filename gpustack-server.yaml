@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: gpustack-server
+  name: gpustack-server
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gpustack-server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gpustack-server
+    spec:
+      containers:
+        - args:
+            - --builtin-grafana-port=3000
+            - --builtin-prometheus-port=9090
+            - --disable-openapi-docs
+            - --disable-update-check
+            - --gateway-concurrency=16
+            - --gateway-mode=embedded
+            - --port=8080
+            - --tls-port=8443
+          command:
+            - sh
+            - -ce
+            - |
+              PYTHON_GPUSTACK=/usr/local/lib/python$PYTHON_VERSION/dist-packages/gpustack
+              f=$PYTHON_GPUSTACK/security.py
+              sed -i -E "s~(API_KEY_PREFIX = ).+~\1\"ai\"~g" "$f"
+              f=$PYTHON_GPUSTACK/utils/network.py
+              sed -i "s~8.8.8.8~1.2.4.8~g;s~2001:4860:4860::8888~2001:dc7:1000::1~g" "$f"
+              exec /usr/bin/entrypoint.sh --bootstrap-password=GPUStack \
+              --system-default-container-registry=swr.cn-south-1.myhuaweicloud.com "$@"
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.1.2
+          livenessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: 15021 # EnvoyHealth
+          name: gpustack
+          ports:
+            - containerPort: 8080
+              name: http
+            - containerPort: 8443
+              name: https
+            - containerPort: 10161
+              name: metrics
+          readinessProbe:
+            httpGet:
+              port: http
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /metrics
+              port: metrics
+            initialDelaySeconds: 30
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: data
+            - mountPath: /var/lib/gpustack/cache
+              name: models
+      enableServiceLinks: false
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: gpustack-server
+      volumes:
+        - hostPath:
+            path: /data/gpustack
+          name: data
+        - hostPath:
+            path: /data/models
+          name: models

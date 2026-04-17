@@ -1,60 +1,25 @@
-<br>
+## 概述
 
-<p align="center">
-    <img alt="GPUStack" src="https://raw.githubusercontent.com/gpustack/gpustack/main/docs/assets/gpustack-logo.png" width="300px"/>
-</p>
-<br>
+GPUStack 是一个开源的 GPU 集群管理器，专为高效的 AI 模型部署而设计。配置和编排推理引擎（vLLM、SGLang、TensorRT-LLM
+或自定义的引擎），以优化跨 GPU 集群的性能。其核心功能包括：
 
-<p align="center">
-    <a href="https://docs.gpustack.ai" target="_blank">
-        <img alt="Documentation" src="https://img.shields.io/badge/Docs-GPUStack-blue?logo=readthedocs&logoColor=white"></a>
-    <a href="./LICENSE" target="_blank">
-        <img alt="License" src="https://img.shields.io/github/license/gpustack/gpustack?logo=github&logoColor=white&label=License&color=blue"></a>
-    <a href="./docs/assets/wechat-group-qrcode.jpg" target="_blank">
-        <img alt="WeChat" src="https://img.shields.io/badge/WeChat-GPUStack-blue?logo=wechat&logoColor=white"></a>
-    <a href="https://discord.gg/VXYJzuaqwD" target="_blank">
-        <img alt="Discord" src="https://img.shields.io/badge/Discord-GPUStack-blue?logo=discord&logoColor=white"></a>
-    <a href="https://twitter.com/intent/follow?screen_name=gpustack_ai" target="_blank">
-        <img alt="Follow on X(Twitter)" src="https://img.shields.io/twitter/follow/gpustack_ai?logo=X"></a>
-</p>
-<br>
+- **多集群 GPU 管理。** 跨多个环境管理 GPU 集群。这包括本地服务器、Kubernetes 集群和云提供商。
+- **可插拔推理引擎。** 自动配置高性能推理引擎，如 vLLM、SGLang，也可以添加自定义推理引擎。
+- **Day 0 模型支持。** GPUStack 的可插拔引擎架构能够在新模型发布当天即可部署。
+- **性能优化配置。** 提供预调优模式，用于低延迟或高吞吐量。GPUStack 支持扩展的 KV 缓存系统，如 LMCache 和 HiCache，以减少
+  TTFT。还包括对推测性解码方法（如 EAGLE3、MTP 和 N-grams）的内置支持。
+- **企业级运维能力。** 支持自动故障恢复、负载均衡、监控、认证和访问控制。
 
-<p align="center">
-  <a href="./README.md">English</a> |
-  <a href="./README_CN.md">简体中文</a> |
-  <a href="./README_JP.md">日本語</a>
-</p>
+## 架构
 
-<br>
+GPUStack 使开发团队、IT 组织和服务提供商能够大规模地提供模型即服务。支持用于 LLM、语音、图像和视频模型的行业标准
+API。内置用户认证和访问控制、GPU 性能和利用率的实时监控，以及使用量和请求率的计量。
 
-## Overview
-
-GPUStack is an open-source GPU cluster manager designed for efficient AI model deployment. It configures and orchestrates inference engines — vLLM, SGLang, TensorRT-LLM, or your own — to optimize performance across GPU clusters. Its core features include:
-- **Multi-Cluster GPU Management.** Manages GPU clusters across multiple environments. This includes on-premises servers, Kubernetes clusters, and cloud providers.
-- **Pluggable Inference Engines.** Automatically configures high-performance inference engines such as vLLM, SGLang, and TensorRT-LLM. You can also add custom inference engines as needed.
-- **Day 0 Model Support.** GPUStack's pluggable engine architecture enables you to deploy new models on the day they are released.
-- **Performance-Optimized Configurations.** Offers pre-tuned modes for low latency or high throughput. GPUStack supports extended KV cache systems like LMCache and HiCache to reduce TTFT. It also includes built-in support for speculative decoding methods such as EAGLE3, MTP, and N-grams.
-- **Enterprise-Grade Operations.** Offers support for automated failure recovery, load balancing, monitoring, authentication, and access control.
-
-## Architecture
-
-GPUStack enables development teams, IT organizations, and service providers to deliver Model-as-a-Service at scale. It supports industry-standard APIs for LLM, voice, image, and video models. The platform includes built-in user authentication and access control, real-time monitoring of GPU performance and utilization, and detailed metering of token usage and API request rates.
-
-The figure below illustrates how a single GPUStack server can manage multiple GPU clusters across both on-premises and cloud environments. The GPUStack scheduler allocates GPUs to maximize resource utilization and selects the appropriate inference engines for optimal performance. Administrators also gain full visibility into system health and metrics through integrated Grafana and Prometheus dashboards.
-
+下图是管理跨本地和云环境的多个 GPU 集群。GPUStack 调度器分配 GPU 以最大化资源利用率，并调度推理引擎以实现最佳性能。通过集成的
+Grafana 和 Prometheus 仪表板展示系统运行状况和指标。
 ![gpustack-v2-architecture](docs/assets/gpustack-v2-architecture.png)
 
-## Optimized Inference Performance
-
-GPUStack's automated engine selection and parameter optimization deliver strong inference performance out of the box. The following figure shows throughput improvements over default vLLM configurations:
-
-![a100-throughput-comparison](docs/assets/a100-throughput-comparison.png)
-
-For detailed benchmarking methods and results, visit our [Inference Performance Lab](https://docs.gpustack.ai/latest/performance-lab/overview/).
-
-## Supported Accelerators
-
-GPUStack supports a wide range of accelerators for AI inference:
+GPUStack 支持多种 AI 推理加速器：
 
 - **NVIDIA GPU**
 - **AMD GPU**
@@ -66,169 +31,116 @@ GPUStack supports a wide range of accelerators for AI inference:
 - **Cambricon MLU**
 - **T-Head PPU**
 
-For detailed requirements and setup instructions, see the [Installation Requirements](https://docs.gpustack.ai/latest/installation/requirements/) documentation.
+有关详细的要求和设置说明，请参阅[安装要求](https://docs.gpustack.ai/latest/installation/requirements/)文档。
 
-## Quick Start
+## 快速入门
 
-### Prerequisites
+### 前提条件
 
-1. A node with at least one NVIDIA GPU. For other GPU types, please check the guidelines in the GPUStack UI when adding a worker, or refer to the [Installation documentation](https://docs.gpustack.ai/latest/installation/requirements/) for more details.
-2. Ensure the NVIDIA driver, [Docker](https://docs.docker.com/engine/install/) and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) are installed on the worker node.
-3. (Optional) A CPU node for hosting the GPUStack server. The GPUStack server does not require a GPU and can run on a CPU-only machine. [Docker](https://docs.docker.com/engine/install/) must be installed. Docker Desktop (for Windows and macOS) is also supported. If no dedicated CPU node is available, the GPUStack server can be installed on the same machine as a GPU worker node.
-4. Only Linux is supported for GPUStack worker nodes. If you use Windows, consider using WSL2 and avoid using Docker Desktop. macOS is not supported for GPUStack worker nodes.
+1. 一个至少配备一块 NVIDIA GPU 的节点。对于其他类型的 GPU，请在 GPUStack UI 中添加 worker
+   时查看指南，或参阅[安装文档](https://docs.gpustack.ai/latest/installation/requirements/)获取更多详细信息。
+2. 确保 worker 节点上已安装 NVIDIA 驱动程序、[Docker](https://docs.docker.com/engine/install/)
+   和 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)。
+3. 一个用于托管 GPUStack server 的 CPU 节点。GPUStack server 不需要 GPU，可以在仅有 CPU 的机器上运行。
+   GPUStack worker 节点仅支持 Linux。
 
-### Install GPUStack
+### 安装部署
 
-Run the following command to install and start the GPUStack server using Docker:
+使用 Docker 安装并启动 GPUStack server：
 
 ```bash
-sudo docker run -d --name gpustack \
-    --restart unless-stopped \
-    -p 80:80 \
-    --volume gpustack-data:/var/lib/gpustack \
-    gpustack/gpustack
+docker \
+  run -d --name gpustack --restart unless-stopped --network=host \
+  -v /var/lib/gpustack:/var/lib/gpustack \
+  -v /datapool/models:/var/lib/gpustack/cache \
+  swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.1.2 \
+  --system-default-container-registry=swr.cn-south-1.myhuaweicloud.com \
+  --bootstrap-password=admin \
+  --port=8080 --tls-port=8443 \
+  --builtin-grafana-port=3000 \
+  --builtin-prometheus-port=9090 \
+  --gateway-concurrency=16 \
+  --gateway-mode=embedded \
+  --disable-openapi-docs \
+  --disable-update-check \
+  --server-external-url=http://172.16.210.201:8080
 ```
 
-<details>
-<summary>Alternative: Use Quay Container Registry Mirror</summary>
-
-If you cannot pull images from `Docker Hub` or the download is very slow, you can use our `Quay.io` mirror by pointing your registry to `quay.io`:
+使用 Docker 安装并启动 GPUStack worker：
 
 ```bash
-sudo docker run -d --name gpustack \
-    --restart unless-stopped \
-    -p 80:80 \
-    --volume gpustack-data:/var/lib/gpustack \
-    quay.io/gpustack/gpustack \
-    --system-default-container-registry quay.io
-```
-</details>
-
-Check the GPUStack startup logs:
-
-```bash
-sudo docker logs -f gpustack
+docker \
+  run -d --name gpustack-worker --restart unless-stopped --network=host \
+  -v /var/lib/gpustack:/var/lib/gpustack \
+  -v /datapool/models:/var/lib/gpustack/cache \
+  -e GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME=gpustack-worker \
+  -e GPUSTACK_SERVER_URL=http://172.16.210.201:8080 \
+  -e GPUSTACK_TOKEN=gpustack_x16_y32 \
+  -v /var/run/docker.sock:/var/run/docker.sock --privileged --runtime=nvidia \
+  swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.1.2 \
+  --system-default-container-registry=swr.cn-south-1.myhuaweicloud.com \
+  --worker-port=10150 \
+  --worker-metrics-port=10151
 ```
 
-After GPUStack starts, run the following command to get the default admin password:
+打开浏览器，访问进入 GPUStack UI。使用默认用户名 `admin` 和上面设置的密码
+`admin` 登录。
+
+### 测试模型
 
 ```bash
-sudo docker exec gpustack cat /var/lib/gpustack/initial_admin_password
-```
-
-Open your browser and navigate to `http://your_host_ip` to access the GPUStack UI. Use the default username `admin` and the password you retrieved above to log in.
-
-### Set Up a GPU Cluster
-
-1. On the GPUStack UI, navigate to the `Clusters` page.
-
-2. Click the `Add Cluster` button.
-
-3. Select `Docker` as the cluster provider.
-
-4. Fill in the `Name` and `Description` fields for the new cluster, then click the `Save` button.
-
-5. Follow the UI guidelines to configure the new worker node. You will need to run a Docker command on the worker node to connect it to the GPUStack server. The command will look similar to the following:
-
-    ```bash
-    sudo docker run -d --name gpustack-worker \
-          --restart=unless-stopped \
-          --privileged \
-          --network=host \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
-          --volume gpustack-data:/var/lib/gpustack \
-          --runtime nvidia \
-          gpustack/gpustack \
-          --server-url http://your_gpustack_server_url \
-          --token your_worker_token \
-          --advertise-address 192.168.1.2
-    ```
-
-6. Execute the command on the worker node to connect it to the GPUStack server.
-
-7. After the worker node connects successfully, it will appear on the `Workers` page in the GPUStack UI.
-
-### Deploy a Model
-
-1. Navigate to the `Catalog` page in the GPUStack UI.
-
-2. Select the `Qwen3 0.6B` model from the list of available models.
-
-3. After the deployment compatibility checks pass, click the `Save` button to deploy the model.
-
-![deploy qwen3 from catalog](docs/assets/quick-start/quick-start-qwen3.png)
-
-4. GPUStack will start downloading the model files and deploying the model. When the deployment status shows `Running`, the model has been deployed successfully.
-
-![model is running](docs/assets/quick-start/model-running.png)
-
-5. Click `Playground - Chat` in the navigation menu, check that the model `qwen3-0.6b` is selected from the top-right `Model` dropdown. Now you can chat with the model in the UI playground.
-
-![quick chat](docs/assets/quick-start/quick-chat.png)
-
-### Use the model via API
-
-1. Hover over the user avatar and navigate to the `API Keys` page, then click the `New API Key` button.
-
-2. Fill in the `Name` and click the `Save` button.
-
-3. Copy the generated API key and save it somewhere safe. Please note that you can only see it once on creation.
-
-4. You can now use the API key to access the OpenAI-compatible API endpoints provided by GPUStack. For example, use curl as the following:
-
-```bash
-# Replace `your_api_key` and `your_gpustack_server_url`
-# with your actual API key and GPUStack server URL.
-export GPUSTACK_API_KEY=your_api_key
-curl http://your_gpustack_server_url/v1/chat/completions \
+curl -u admin:admin http://172.16.210.201:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $GPUSTACK_API_KEY" \
   -d '{
-    "model": "qwen3-0.6b",
-    "messages": [
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "Tell me a joke."
-      }
-    ],
-    "stream": true
-  }'
+  "seed": null,
+  "stop": null,
+  "temperature": 1,
+  "top_p": 1,
+  "max_tokens": 32768,
+  "frequency_penalty": 0,
+  "presence_penalty": 0,
+  "model": "GLM-5.1",
+  "messages": [
+    {
+      "role": "user",
+      "content": "自我介绍"
+    },
+    {
+      "role": "assistant",
+      "content": "提供热情、细腻的回答"
+    }
+  ]
+}'
 ```
 
-## Documentation
+### 部署截图
 
-Please see the [official docs site](https://docs.gpustack.ai) for complete documentation.
+基于 DaemonSet 自动安装 [NVIDIA Container Toolkit](k3s/nvidia-container-toolkit.yaml)
+![](k3s/nvidia-container-toolkit.png)
+使用 deviceQuery 校验 GPU 可用性
+![](k3s/nvidia-cuda-sample.png)
+GPUStack `worker` 部署运行大模型
+![](k3s/GPUStack-worker.png)
 
-## Build
+### [requirements.md#port-requirements](https://github.com/gpustack/gpustack/blob/main/docs/installation/requirements.md#port-requirements)
 
-1. Install Python (version 3.10 to 3.12).
-
-2. Run `make build`.
-
-You can find the built wheel package in `dist` directory.
-
-## Contributing
-
-Please read the [Contributing Guide](./docs/contributing.md) if you're interested in contributing to GPUStack.
-
-## Join Community
-
-Any issues or have suggestions, feel free to join our [Community](https://discord.gg/VXYJzuaqwD) for support.
-
-## License
-
-Copyright (c) 2024-2025 The GPUStack authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at [LICENSE](./LICENSE) file for details.
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+```shell
+:10161 30080 # python[GPUStack-metrics/GPUStack-internalAPI] :10161/metrics
+:8080 :8443 :15021 :15090 15000 # envoy[GPUStack-http/GPUStack-https/EnvoyHealth/EnvoyMetrics/EnvoyManagement] :15021/healthz/ready :15090/stats/prometheus 127.0.0.1:15000/config_dump
+15010 15012 9876 # pilot-discovery[XDS-HTTP/XDS-gRPC/Introspection]
+:15020 # pilot-agent[metrics] :15020/stats/prometheus
+8888 15051 # higress[XDS-HTTP/XDS-gRPC]
+18443 # apiserver[Higress-API-server] /var/lib/gpustack/higress/kubeconfig
+:3000 # grafana
+:9090 # prometheus
+:5432 # postgres
+/usr/bin/postgres -D /var/lib/gpustack/postgresql/data -p 5432 -c config_file=/etc/postgresql/main/postgresql.conf -c hba_file=/etc/postgresql/main/pg_hba.conf
+/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/gpustack/prometheus --web.listen-address=0.0.0.0:9090 --web.external-url=/prometheus --web.route-prefix=/prometheus
+/usr/local/bin/grafana-server --homepath /opt/grafana --config /etc/grafana/grafana.ini --packaging=gpustack
+/usr/local/bin/apiserver --bind-address 127.0.0.1 --secure-port 18443 --storage file --file-root-dir /var/lib/gpustack/higress/apiserver --cert-dir /tmp
+/usr/local/bin/higress serve --kubeconfig=/var/lib/gpustack/higress/kubeconfig --gatewaySelectorKey=higress --gatewaySelectorValue=higress-system-higress-gateway --gatewayHttpPort=8080 --gatewayHttpsPort=8443 --ingressClass= --httpAddress=localhost:8888 --grpcAddress=localhost:15051
+/usr/local/bin/pilot-discovery discovery --kubeconfig=/var/lib/gpustack/higress/kubeconfig --grpcAddr= --secureGRPCAddr=localhost:15012 --httpAddr=localhost:15010 --httpsAddr= --monitoringAddr= --log_output_level=default:info --domain=cluster.local --keepaliveMaxServerConnectionAge=30m --caCertFile=/etc/certs/ca-cert.pem --meshConfig=/etc/istio/config/mesh --networksConfig=/etc/istio/config/meshNetworks
+/usr/local/bin/pilot-agent proxy router --concurrency=16 --domain=higress-system.svc.cluster.local --proxyLogLevel=warning --proxyComponentLogLevel=misc:error --log_output_level=all:info --serviceCluster=higress-gateway
+/usr/local/bin/envoy -c etc/istio/proxy/envoy-rev.json --drain-time-s 45 --drain-strategy immediate --local-address-ip-version v4 --file-flush-interval-msec 1000 --disable-hot-restart --allow-unknown-static-fields --log-format %Y-%m-%dT%T.%fZ?%l?envoy %n %g:%#?%v?thread=%t -l warning --component-log-level misc:error --concurrency 16
+/usr/bin/python /usr/local/bin/gpustack start --system-default-container-registry=swr.cn-south-1.myhuaweicloud.com --bootstrap-password=admin --builtin-prometheus-port=9090 --builtin-grafana-port=3000 --port=8080 --tls-port=8443 --gateway-concurrency=16 --gateway-mode=embedded
+```

@@ -24,8 +24,8 @@ ARG PYTHON_VERSION=3.11
 ARG GPUSTACK_BASE_IMAGE=base
 ARG GPUSTACK_RUNTIME_ROCM_VERSION=7.0.2
 ARG GPUSTACK_RUNTIME_DOCKER_MIRRORED_NAME_FILTER_LABELS
-ARG HIGRESS_VERSION=2.1.9
-ARG HIGRESS_APISERVER_VERSION=0.0.26
+ARG HIGRESS_VERSION=2.1.11
+ARG HIGRESS_APISERVER_VERSION=0.0.29
 ARG PROMETHEUS_VERSION=3.5.1
 ARG GRAFANA_VERSION=12.2.4
 
@@ -490,7 +490,7 @@ EOF
 
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=bind,target=/workspace/gpustack,rw \
-    --mount=type=bind,from=ghcr.io/oras-project/oras:v1.3.0,source=/bin/oras,dst=/bin/oras <<EOF
+    --mount=type=bind,from=ghcr.io/oras-project/oras:v1.3.2,source=/bin/oras,dst=/bin/oras <<EOF
     # Install GPUStack
 
     export POETRY_NO_CACHE=0
