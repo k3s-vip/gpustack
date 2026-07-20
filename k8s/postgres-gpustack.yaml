@@ -1,0 +1,77 @@
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  annotations:
+    acid.zalan.do/controller: postgres-operator
+  name: postgres-gpustack
+  namespace: gpustack-system
+spec:
+  connectionPooler:
+    maxDBConnections: 100
+    numberOfInstances: 2
+  databases:
+    gpustack: gpustack
+  enableConnectionPooler: false
+  enableLogicalBackup: false
+  enableMasterLoadBalancer: false
+  enableMasterPoolerLoadBalancer: false
+  enableReplicaConnectionPooler: false
+  enableReplicaLoadBalancer: false
+  enableReplicaPoolerLoadBalancer: false
+  enableShmVolume: true
+  env:
+    - name: TZ
+      value: Asia/Shanghai
+    - name: SPILO_PROVIDER
+      value: local
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/os
+              operator: In
+              values:
+                - linux
+  numberOfInstances: 2
+  patroni:
+    failsafe_mode: true
+    pg_hba: # https://www.postgresql.org/docs/current/auth-pg-hba-conf.html
+      - local all all peer
+      - local replication all scram-sha-256
+      - host all,replication all all scram-sha-256
+  postgresql:
+    # SAN: effective_io_concurrency/random_page_cost=300/1.1
+    # SSD: effective_io_concurrency/random_page_cost=200/1.1
+    # HDD: effective_io_concurrency/random_page_cost=2/4
+    parameters: # https://pgtune.leopard.in.ua
+      checkpoint_completion_target: "0.9"
+      default_statistics_target: "100"
+      effective_cache_size: 3GB
+      effective_io_concurrency: "200"
+      huge_pages: "off"
+      maintenance_work_mem: 512MB
+      max_connections: "50"
+      max_parallel_maintenance_workers: "2"
+      max_parallel_workers: "4"
+      max_parallel_workers_per_gather: "2"
+      max_wal_size: 2GB
+      max_worker_processes: "4"
+      min_wal_size: 1GB
+      password_encryption: scram-sha-256
+      random_page_cost: "1.1"
+      shared_buffers: 2GB
+      wal_buffers: 64MB
+      work_mem: 8MB
+    version: "18"
+  resources:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: "2"
+      memory: 2Gi
+  teamId: k8s
+  users: # (no)bypassrls createdb createrole inherit login replication superuser
+    gpustack: []
+  volume:
+    size: 50Gi
