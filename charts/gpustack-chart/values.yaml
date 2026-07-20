@@ -25,7 +25,7 @@ registrationToken: null
 # credentials are provided below, the chart skips creating the canonical
 # Secret to avoid leaving an unused resource behind.
 global:
-  hub: docker.io
+  hub: swr.cn-south-1.myhuaweicloud.com
   imagePullSecrets:
     - name: gpustack-image-pull-secret
   # Default nodeSelector applied to every GPUStack component (server + worker)
@@ -86,7 +86,7 @@ server:
   # Only needed for multi-replica (HA) setups; single-node installs generate a
   # per-node password without it. Enterprise enables this by default.
   bootstrapPasswordSecret:
-    enabled: false
+    enabled: true
     # Pin a known initial password. When set, it is injected into every replica
     # as GPUSTACK_BOOTSTRAP_PASSWORD and treated as operator-chosen: no forced
     # first-login change and no password-retrieval guide (same behavior as
@@ -101,7 +101,7 @@ server:
     # template rendering (ArgoCD/Flux, `helm template`). In those environments a
     # new random value is produced on every sync; set a static `password` here
     # to pin it.
-    password: null
+    password: passw0rd
   environmentConfig: {}
   # Extra volume mounts for the server container. Use together with
   # `extraVolumes` to mount additional files into the server pod, e.g. a
@@ -170,7 +170,7 @@ gateway:
 # and ensure gateway.ingressClassname matches your existing Higress instance.
 # Full list of available values: https://higress.io/helm-charts
 higress-core:
-  enabled: true
+  enabled: false
   global:
     # Must match gateway.ingressClassname above
     ingressClass: higress

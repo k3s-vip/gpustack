@@ -1,0 +1,37 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: higress-console
+  namespace: kube-system
+spec:
+  chart: higress-console
+  createNamespace: true
+  failurePolicy: retry
+  insecureSkipTLSVerify: true
+  repo: https://higress.cn/helm-charts
+  targetNamespace: higress-system
+  valuesContent: |
+    global:
+      o11y:
+        enabled: true
+        grafana:
+          pvc:
+            storageClassName: ~
+          storage: 20Gi
+        loki:
+          pvc:
+            storageClassName: ~
+          storage: 30Gi
+        prometheus:
+          pvc:
+            storageClassName: ~
+          resources:
+            limits:
+              cpu: 500m
+              memory: 2Gi
+          storage: 50Gi
+    nodeSelector:
+      kubernetes.io/os: linux
+    swagger:
+      enabled: false
+  version: 2.2.3

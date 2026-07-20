@@ -1,0 +1,301 @@
+---
+# Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registration-token
+  namespace: gpustack-system
+stringData:
+  GPUSTACK_RUNTIME_DEPLOY: "Kubernetes"
+  GPUSTACK_RUNTIME_DEPLOY_MIRRORED_DEPLOYMENT: "true"
+  GPUSTACK_SERVER_URL: http://192.168.64.169:8000
+  GPUSTACK_TOKEN: gpustack_x16_y32
+  GPUSTACK_WORKER_METRICS_PORT: "10151"
+  GPUSTACK_WORKER_PORT: "10150"
+type: Opaque
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpustack-worker
+  namespace: gpustack-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-worker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-worker
+    namespace: gpustack-system
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "10151"
+    prometheus.io/scrape: "true"
+  name: gpustack-worker
+  namespace: gpustack-system
+spec:
+  ports:
+    - name: api
+      port: 10150
+      targetPort: 10150
+    - name: metrics
+      port: 10151
+      targetPort: 10151
+  selector:
+    app.kubernetes.io/component: worker
+  type: ClusterIP
+---
+# DaemonSet for cpu
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: gpustack-worker
+    app.kubernetes.io/component: worker
+    gpustack.io/runtime: cpu
+  name: gpustack-worker
+  namespace: gpustack-system
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: gpustack-worker
+  template:
+    metadata:
+      labels:
+        app: gpustack-worker
+        app.kubernetes.io/component: worker
+        gpustack.io/runtime: cpu
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: worker
+              namespaceSelector: {}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - env:
+            - name: GPUSTACK_WORKER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_WORKER_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - secretRef:
+                name: registration-token
+                optional: false
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.2.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          name: gpustack-worker
+          ports:
+            - containerPort: 10150
+              name: api
+              protocol: TCP
+            - containerPort: 10151
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /readyz
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities: {}
+            privileged: true
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: gpustack-data-dir
+              readOnly: false
+      dnsPolicy: ClusterFirstWithHostNet
+      # Disable Kubernetes service-link env injection. The gpustack-worker
+      # Service would otherwise inject GPUSTACK_WORKER_PORT=tcp://... which
+      # collides with the GPUSTACK_-prefixed config defaults and crashes prerun.
+      # GPUStack sets every env it needs explicitly and resolves peers via DNS,
+      # so it never relies on these link vars. (KUBERNETES_SERVICE_HOST/_PORT are
+      # exempt from this flag and keep working.)
+      enableServiceLinks: false
+      hostIPC: true
+      hostNetwork: true
+      nodeSelector:
+        feature.gpustack.ai/acceleratable: 'false'
+      serviceAccountName: gpustack-worker
+      volumes:
+        - hostPath:
+            path: /data/gpustack
+            type: DirectoryOrCreate
+          name: gpustack-data-dir
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+---
+# DaemonSet for nvidia
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: gpustack-worker-nvidia
+    app.kubernetes.io/component: worker
+    gpustack.io/runtime: nvidia
+  name: gpustack-worker-nvidia
+  namespace: gpustack-system
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: gpustack-worker-nvidia
+  template:
+    metadata:
+      labels:
+        app: gpustack-worker-nvidia
+        app.kubernetes.io/component: worker
+        gpustack.io/runtime: nvidia
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: worker
+              namespaceSelector: {}
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - env:
+            - name: GPUSTACK_WORKER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_WORKER_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          envFrom:
+            - secretRef:
+                name: registration-token
+                optional: false
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.2.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          name: gpustack-worker
+          ports:
+            - containerPort: 10150
+              name: api
+              protocol: TCP
+            - containerPort: 10151
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /readyz
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities: {}
+            privileged: true
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: gpustack-data-dir
+              readOnly: false
+      dnsPolicy: ClusterFirstWithHostNet
+      # Disable Kubernetes service-link env injection. The gpustack-worker
+      # Service would otherwise inject GPUSTACK_WORKER_PORT=tcp://... which
+      # collides with the GPUSTACK_-prefixed config defaults and crashes prerun.
+      # GPUStack sets every env it needs explicitly and resolves peers via DNS,
+      # so it never relies on these link vars. (KUBERNETES_SERVICE_HOST/_PORT are
+      # exempt from this flag and keep working.)
+      enableServiceLinks: false
+      hostIPC: true
+      hostNetwork: true
+      nodeSelector:
+        feature.node.kubernetes.io/pci-10de.present: 'true'
+      runtimeClassName: nvidia
+      serviceAccountName: gpustack-worker
+      volumes:
+        - hostPath:
+            path: /data/gpustack
+            type: DirectoryOrCreate
+          name: gpustack-data-dir
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate

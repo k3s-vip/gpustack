@@ -1,0 +1,40 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: higress-core
+  namespace: kube-system
+spec:
+  chart: higress-core
+  createNamespace: true
+  failurePolicy: retry
+  insecureSkipTLSVerify: true
+  repo: https://higress.cn/helm-charts
+  targetNamespace: higress-system
+  valuesContent: |
+    controller:
+      nodeSelector:
+        kubernetes.io/os: linux
+      probe:
+        initialDelaySeconds: 10
+    gateway:
+      hostNetwork: true
+      httpPort: &http 8000
+      httpsPort: &https 8443
+      kind: DaemonSet # DaemonSet: service.type=None,hostNetwork=true
+      nodeSelector:
+        kubernetes.io/os: linux
+      service:
+        ports:
+          - name: http
+            port: 80
+            protocol: TCP
+            targetPort: *http
+          - name: https
+            port: 443
+            protocol: TCP
+            targetPort: *https
+        type: None # "None" to disable
+    global:
+      o11y:
+        enabled: false
+  version: 2.2.3
