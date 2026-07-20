@@ -1,0 +1,66 @@
+diff --git a/k8s/gpustack-server-aio.yaml b/k8s/gpustack-server-aio.yaml
+index 11361854..36185445 100644
+--- a/k8s/gpustack-server-aio.yaml
++++ b/k8s/gpustack-server-aio.yaml
+@@ -49,7 +49,11 @@ spec:
+               cd bin
+               cp -a *_tmpl.json golang-filter.so /var/lib/istio/envoy/
+               cp -a apiserver higress pilot-discovery pilot-agent envoy supercronic-*-* /usr/local/bin/
++              f=/etc/s6-overlay/s6-rc.d/pilot/run
++              sed -i -E "s~(monitoringAddr=) ~\1localhost:15014 ~g" "$f"
+               PYTHON_GPUSTACK=/usr/local/lib/python$PYTHON_VERSION/dist-packages/gpustack
++              f=$PYTHON_GPUSTACK/security.py
++              sed -i -E "s~(API_KEY_PREFIX = ).+~\1\"ai\"~g" "$f"
+               f=$PYTHON_GPUSTACK/utils/network.py
+               sed -i "s~8.8.8.8~1.2.4.8~g;s~2001:4860:4860::8888~2001:dc7:1000::1~g" "$f"
+               f=$PYTHON_GPUSTACK/cmd/images.py
+@@ -131,6 +135,31 @@ spec:
+             - mountPath: /var/lib/gpustack/cache
+               name: models
+           workingDir: /var/lib/gpustack
++        - command:
++            - sh
++            - -ce
++            - |
++              until curl 127.0.0.1:15021/healthz/ready >/dev/null 2>&1; do sleep 5; done
++              sed -i -E "s~user: [^a-z]+~user:\n      username: admin\n      password: passw0rd~" $HIGRESS_CONSOLE_KUBE_CONFIG
++              exec java $JVM_ARGS -jar /app/higress-console.jar || sleep inf
++          env:
++            - name: HIGRESS_CONSOLE_KUBE_CONFIG
++              value: /higress/kubeconfig
++            - name: SPRINGDOC_API_DOCS_ENABLED
++              value: "true"
++            - name: SPRINGDOC_SWAGGER_UI_ENABLED # /swagger-ui/index.html
++              value: "true"
++            - name: JVM_ARGS
++              value: -XX:+UnlockDiagnosticVMOptions -XX:-UseAESCTRIntrinsics
++          image: docker.1ms.run/muicoder/java:11
++          name: higress-console
++          volumeMounts:
++            - mountPath: /app
++              name: data
++              subPath: .bin
++            - mountPath: /higress
++              name: data
++              subPath: higress
+       dnsPolicy: ClusterFirstWithHostNet
+       enableServiceLinks: false
+       hostNetwork: true
+@@ -179,6 +208,17 @@ spec:
+               name: data
+               subPath: bin
+           workingDir: /data
++        - command:
++            - sh
++            - -ce
++            - cp -auv /app/higress-console.jar /app/tools . || sleep inf
++          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/console:v2.1.11
++          name: console
++          volumeMounts:
++            - mountPath: /data
++              name: data
++              subPath: .bin
++          workingDir: /data
+       nodeSelector:
+         kubernetes.io/os: linux
+       serviceAccount: default
