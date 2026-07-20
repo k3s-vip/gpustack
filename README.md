@@ -1,231 +1,138 @@
-<br>
+## 概述
 
-<p align="center">
-    <img alt="GPUStack" src="https://raw.githubusercontent.com/gpustack/gpustack/main/docs/assets/gpustack-logo.png" width="300px"/>
-</p>
-<br>
+GPUStack 是一个开源的 GPU 集群管理器，用于 AI 模型推理服务和 GPU 实例供应。它配置和编排推理引擎（vLLM、SGLang、TensorRT-LLM
+或您自定义的引擎），并支持通过 SSH 访问的 GPU 实例。其核心功能包括：
 
-<p align="center">
-    <a href="https://docs.gpustack.ai" target="_blank">
-        <img alt="Documentation" src="https://img.shields.io/badge/Docs-GPUStack-blue?logo=readthedocs&logoColor=white"></a>
-    <a href="./LICENSE" target="_blank">
-        <img alt="License" src="https://img.shields.io/github/license/gpustack/gpustack?logo=github&logoColor=white&label=License&color=blue"></a>
-    <a href="https://discord.gg/VXYJzuaqwD" target="_blank">
-        <img alt="Discord" src="https://img.shields.io/badge/Discord-GPUStack-blue?logo=discord&logoColor=white"></a>
-    <a href="https://twitter.com/intent/follow?screen_name=gpustack_ai" target="_blank">
-        <img alt="Follow on X(Twitter)" src="https://img.shields.io/twitter/follow/gpustack_ai?logo=X"></a>
-</p>
-<br>
+- **多集群 GPU 管理。** 跨多个环境管理 GPU 集群。这包括本地服务器、Kubernetes 集群和云提供商。
+- **可插拔推理引擎。** 自动配置高性能推理引擎，如 vLLM、SGLang，也可以添加自定义推理引擎。
+- **Day 0 模型支持。** GPUStack 的可插拔引擎架构能够在新模型发布当天即可部署。
+- **性能优化配置。** 提供预调优模式，用于低延迟或高吞吐量。GPUStack 支持扩展的 KV 缓存系统，如 LMCache 和 HiCache，以减少
+  TTFT。还包括对推测性解码方法（如 EAGLE3、MTP 和 N-grams）的内置支持。
+- **GPU 实例。** 按需启动可通过 SSH 访问的 GPU 实例，适用于开发、微调和交互式工作负载。
+- **企业级运维能力。** 支持自动故障恢复、负载均衡、监控、认证和访问控制。
 
-<p align="center">
-  <a href="./README.md">English</a> |
-  <a href="./README_CN.md">简体中文</a> |
-  <a href="./README_JP.md">日本語</a>
-</p>
+## 架构
 
-<br>
+GPUStack 使开发团队、IT 组织和服务提供商能够大规模地提供模型即服务。支持用于 LLM、语音、图像和视频模型的行业标准
+API。内置用户认证和访问控制、GPU 性能和利用率的实时监控，以及使用量和请求率的计量。
 
-## Overview
-
-GPUStack is an open-source GPU cluster manager for AI model serving and GPU instance provisioning. It configures and orchestrates inference engines — vLLM, SGLang, TensorRT-LLM, or your own — and lets you launch SSH-accessible GPU instances on demand. Its core features include:
-- **Multi-Cluster GPU Management.** Manages GPU clusters across multiple environments. This includes on-premises servers, Kubernetes clusters, and cloud providers.
-- **Pluggable Inference Engines.** Automatically configures high-performance inference engines such as vLLM, SGLang, and TensorRT-LLM. You can also add custom inference engines as needed.
-- **Day 0 Model Support.** GPUStack's pluggable engine architecture enables you to deploy new models on the day they are released.
-- **Performance-Optimized Configurations.** Offers pre-tuned modes for low latency or high throughput. GPUStack supports extended KV cache systems like LMCache and HiCache to reduce TTFT. It also includes built-in support for speculative decoding methods such as EAGLE3, MTP, and N-grams.
-- **GPU Instances.** Launches SSH-accessible GPU instances on demand for development, fine-tuning, and interactive workloads.
-- **Enterprise-Grade Operations.** Offers support for automated failure recovery, load balancing, monitoring, authentication, and access control.
-
-## Architecture
-
-GPUStack enables development teams, IT organizations, and service providers to deliver Model-as-a-Service at scale. It supports industry-standard APIs for LLM, voice, image, and video models. The platform includes built-in user authentication and access control, real-time monitoring of GPU performance and utilization, and detailed metering of token usage and API request rates.
-
-The figure below illustrates how a single GPUStack server can manage multiple GPU clusters across both on-premises and cloud environments. The GPUStack scheduler allocates GPUs to maximize resource utilization and selects the appropriate inference engines for optimal performance. Administrators also gain full visibility into system health and metrics through integrated Grafana and Prometheus dashboards.
-
+下图是管理跨本地和云环境的多个 GPU 集群。GPUStack 调度器分配 GPU 以最大化资源利用率，并调度推理引擎以实现最佳性能。通过集成的
+Grafana 和 Prometheus 仪表板展示系统运行状况和指标。
 ![gpustack-v2-architecture](docs/assets/gpustack-v2-architecture.png)
 
-## Optimized Inference Performance
+有关详细的要求和设置说明，请参阅[安装要求](https://docs.gpustack.ai/latest/installation/requirements/)文档。
 
-GPUStack's automated engine selection and parameter optimization deliver strong inference performance out of the box. The following figure shows throughput improvements over default vLLM configurations:
+## 快速入门
 
-![h200-throughput-comparison](docs/assets/h200-throughput-comparison.png)
+### 前提条件
 
-For detailed benchmarking methods and results, visit our [Inference Performance Lab](https://docs.gpustack.ai/latest/performance-lab/overview/).
+1. 一个至少配备一块 NVIDIA GPU 的节点。对于其他类型的 GPU，请在 GPUStack UI 中添加 worker
+   时查看指南，或参阅[安装文档](https://docs.gpustack.ai/latest/installation/requirements/)获取更多详细信息。
+2. 确保 worker 节点上已安装 NVIDIA 驱动程序、[Docker](https://docs.docker.com/engine/install/)
+   和 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)。
+3. 一个用于托管 GPUStack server 的 CPU 节点。GPUStack server 不需要 GPU，可以在仅有 CPU 的机器上运行。
+   GPUStack worker 节点仅支持 Linux。
 
-## Supported Accelerators
+### 安装部署
 
-GPUStack supports a wide range of accelerators for AI inference:
+[requirements.md#port-requirements](https://github.com/gpustack/gpustack/blob/main/docs/installation/requirements.md#port-requirements)
 
-- **NVIDIA GPU**
-- **AMD GPU**
-- **Ascend NPU**
-- **Hygon DCU**
-- **MThreads GPU**
-- **Iluvatar GPU**
-- **MetaX GPU**
-- **Cambricon MLU**
-- **T-Head PPU**
+基于 Kubernetes 安装并启动 GPUStack [Higress](https://higress.ai)：[helm-controller](https://github.com/k3s-io/helm-controller)
 
-For detailed requirements and setup instructions, see the [Installation Requirements](https://docs.gpustack.ai/latest/installation/requirements/) documentation.
-
-## Quick Start
-
-### Prerequisites
-
-1. A node with at least one NVIDIA GPU. For other GPU types, please check the guidelines in the GPUStack UI when adding a worker, or refer to the [Installation documentation](https://docs.gpustack.ai/latest/installation/requirements/) for more details.
-2. Ensure the NVIDIA driver, [Docker](https://docs.docker.com/engine/install/) and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) are installed on the worker node.
-3. (Optional) A CPU node for hosting the GPUStack server. The GPUStack server does not require a GPU and can run on a CPU-only machine. [Docker](https://docs.docker.com/engine/install/) must be installed. Docker Desktop (for Windows and macOS) is also supported. If no dedicated CPU node is available, the GPUStack server can be installed on the same machine as a GPU worker node.
-4. Only Linux is supported for GPUStack worker nodes. If you use Windows, consider using WSL2 and avoid using Docker Desktop. macOS is not supported for GPUStack worker nodes.
-
-### Install GPUStack
-
-Run the following command to install and start the GPUStack server using Docker:
-
-```bash
-sudo docker run -d --name gpustack \
-    --restart unless-stopped \
-    -p 80:80 \
-    --volume gpustack-data:/var/lib/gpustack \
-    gpustack/gpustack
+```shell
+# kubectl create -f k8s/helm-controller.yaml
+customresourcedefinition.apiextensions.k8s.io/helmchartconfigs.helm.cattle.io created
+customresourcedefinition.apiextensions.k8s.io/helmcharts.helm.cattle.io created
+clusterrole.rbac.authorization.k8s.io/helm-controller created
+clusterrolebinding.rbac.authorization.k8s.io/helm-controller created
+serviceaccount/helm-controller created
+deployment.apps/helm-controller created
+# kubectl create -f k8s/higress-core.yaml
+helmchart.helm.cattle.io/higress-core created
 ```
 
-<details>
-<summary>Alternative: Use Quay Container Registry Mirror</summary>
+基于 Kubernetes 安装并启动 GPUStack [PostgreSQL](https://www.postgresql.org)：[postgres-operator](https://github.com/zalando/postgres-operator)
 
-If you cannot pull images from `Docker Hub` or the download is very slow, you can use our `Quay.io` mirror by pointing your registry to `quay.io`:
-
-```bash
-sudo docker run -d --name gpustack \
-    --restart unless-stopped \
-    -p 80:80 \
-    --volume gpustack-data:/var/lib/gpustack \
-    quay.io/gpustack/gpustack \
-    --system-default-container-registry quay.io
-```
-</details>
-
-Check the GPUStack startup logs:
-
-```bash
-sudo docker logs -f gpustack
-```
-
-After GPUStack starts, run the following command to get the default admin password:
-
-```bash
-sudo docker exec gpustack cat /var/lib/gpustack/initial_admin_password
+```shell
+# kubectl create -f k8s/postgres-operator.yaml
+customresourcedefinition.apiextensions.k8s.io/operatorconfigurations.acid.zalan.do created
+customresourcedefinition.apiextensions.k8s.io/postgresqls.acid.zalan.do created
+customresourcedefinition.apiextensions.k8s.io/postgresteams.acid.zalan.do created
+operatorconfiguration.acid.zalan.do/postgres-operator created
+priorityclass.scheduling.k8s.io/postgres-operator-pod created
+serviceaccount/postgres-operator created
+clusterrole.rbac.authorization.k8s.io/postgres-pod created
+clusterrole.rbac.authorization.k8s.io/postgres-operator created
+clusterrolebinding.rbac.authorization.k8s.io/postgres-operator created
+service/postgres-operator created
+deployment.apps/postgres-operator created
+# kubectl create ns gpustack-system
+namespace/gpustack-system created
+# kubectl create -f k8s/postgres-gpustack.yaml
+postgresql.acid.zalan.do/postgres-gpustack created
 ```
 
-Open your browser and navigate to `http://your_host_ip` to access the GPUStack UI. Use the default username `admin` and the password you retrieved above to log in.
+基于 Kubernetes 安装并启动 GPUStack：
 
-### Set Up a GPU Cluster
-
-1. On the GPUStack UI, navigate to the `Clusters` page.
-
-2. Click the `Add Cluster` button.
-
-3. Select `Docker` as the cluster provider.
-
-4. Fill in the `Name` and `Description` fields for the new cluster, then click the `Save` button.
-
-5. Follow the UI guidelines to configure the new worker node. You will need to run a Docker command on the worker node to connect it to the GPUStack server. The command will look similar to the following:
-
-    ```bash
-    sudo docker run -d --name gpustack-worker \
-          --restart=unless-stopped \
-          --privileged \
-          --network=host \
-          --volume /var/run/docker.sock:/var/run/docker.sock \
-          --volume gpustack-data:/var/lib/gpustack \
-          --runtime nvidia \
-          gpustack/gpustack \
-          --server-url http://your_gpustack_server_url \
-          --token your_worker_token \
-          --advertise-address 192.168.1.2
-    ```
-
-6. Execute the command on the worker node to connect it to the GPUStack server.
-
-7. After the worker node connects successfully, it will appear on the `Workers` page in the GPUStack UI.
-
-### Deploy a Model
-
-1. Navigate to the `Catalog` page in the GPUStack UI.
-
-2. Select the `Qwen3.5-0.8B` model from the list of available models.
-
-![deploy qwen3 from catalog](docs/assets/quick-start/quick-start-qwen3.png)
-
-3. After the deployment compatibility checks pass, click the `Save` button to deploy the model.
-
-4. GPUStack will start downloading the model files and deploying the model. When the deployment status shows `Running`, the model has been deployed successfully.
-
-![model is running](docs/assets/quick-start/model-running.png)
-
-5. Click `Playground - Chat` in the navigation menu, check that the model `qwen3.5-0.8b` is selected from the top-right `Model` dropdown. Now you can chat with the model in the UI playground.
-
-![quick chat](docs/assets/quick-start/quick-chat.png)
-
-### Use the model via API
-
-1. Navigate to the `Access Control` > `API Keys` page, then click the `New API Key` button.
-
-2. Fill in the `Name` and click the `Save` button.
-
-3. Copy the generated API key and save it somewhere safe. Please note that you can only see it once on creation.
-
-4. You can now use the API key to access the OpenAI-compatible API endpoints provided by GPUStack. For example, use curl as the following:
-
-```bash
-# Replace `your_api_key` and `your_gpustack_server_url`
-# with your actual API key and GPUStack server URL.
-export GPUSTACK_API_KEY=your_api_key
-curl http://your_gpustack_server_url/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $GPUSTACK_API_KEY" \
-  -d '{
-    "model": "qwen3.5-0.8b",
-    "messages": [
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "Tell me a joke."
-      }
-    ],
-    "stream": true
-  }'
+```shell
+# kubectl create -f k8s/gpustack-server.yaml
+serviceaccount/gpustack-server created
+clusterrole.rbac.authorization.k8s.io/gpustack-server-ingressclass-viewer created
+clusterrole.rbac.authorization.k8s.io/gpustack-server-higress-operations created
+clusterrolebinding.rbac.authorization.k8s.io/gpustack-server-ingressclass-viewer-binding created
+clusterrolebinding.rbac.authorization.k8s.io/gpustack-server-higress-operations-binding created
+role.rbac.authorization.k8s.io/gpustack-server created
+rolebinding.rbac.authorization.k8s.io/gpustack-server-binding created
+service/gpustack-higress-plugins created
+service/gpustack-server created
+service/gpustack-server-cluster-ip created
+deployment.apps/gpustack-higress-plugins created
+statefulset.apps/gpustack-server created
+ingress.networking.k8s.io/default created
+# kubectl get pods -A | grep -E '(postgres-operator|gpustack-higress-plugins|gpustack-server|postgres-gpustack|higress-controller|higress-gateway|helm-controller|helm-install-higress-core)-'
+NAMESPACE         NAME                                        READY   STATUS      RESTARTS     AGE
+default           postgres-operator-1234567890-12345          1/1     Running     0            2m22s
+gpustack-system   gpustack-higress-plugins-1234567890-12345   1/1     Running     0            1m15s
+gpustack-system   gpustack-server-0                           1/1     Running     0 (1m ago)   1m15s
+gpustack-system   postgres-gpustack-0                         1/1     Running     0            1m55s
+gpustack-system   postgres-gpustack-1                         1/1     Running     0            1m35s
+higress-system    higress-controller-1234567890-12345         2/2     Running     0            2m34s
+higress-system    higress-gateway-12345                       1/1     Running     0            2m34s
+kube-system       helm-controller-1234567890-12345            1/1     Running     0            3m21s
+kube-system       helm-install-higress-core-12345             0/1     Completed   0            2m43s
 ```
 
-## Documentation
+使用 Docker 安装并启动 GPUStack：
 
-Please see the [official docs site](https://docs.gpustack.ai) for complete documentation.
+```shell
+# GPUStack server
+docker \
+  run -d --name gpustack --restart unless-stopped --network=host \
+  -v /data/gpustack:/var/lib/gpustack \
+  -e GPUSTACK_BOOTSTRAP_PASSWORD=passw0rd \
+  -e GPUSTACK_SYSTEM_DEFAULT_CONTAINER_REGISTRY=swr.cn-south-1.myhuaweicloud.com \
+  swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0 \
+  --port=8000 --tls-port=8443 \
+  --disable-openapi-docs \
+  --disable-update-check \
+  --gateway-mode=embedded
+# GPUStack worker
+docker \
+  run -d --name gpustack-worker --restart unless-stopped --network=host \
+  -v /data/gpustack:/var/lib/gpustack \
+  -e GPUSTACK_SYSTEM_DEFAULT_CONTAINER_REGISTRY=swr.cn-south-1.myhuaweicloud.com \
+  -e GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME=gpustack-worker \
+  -e GPUSTACK_TOKEN=gpustack_x16_y32 \
+  -v /var/run/docker.sock:/var/run/docker.sock --privileged --runtime=nvidia \
+  swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0
+```
 
-## Build
+打开浏览器，访问进入 GPUStack UI。使用默认用户名 `admin` 和上面设置的密码
+`passw0rd` 登录。
 
-1. Install [Docker](https://docs.docker.com/engine/install/).
+### 测试模型
 
-2. Run `make package`.
-
-## Contributing
-
-Please read the [Contributing Guide](./docs/contributing.md) if you're interested in contributing to GPUStack.
-
-## Join Community
-
-Any issues or have suggestions, feel free to join our [Community](https://discord.gg/VXYJzuaqwD) for support.
-
-## License
-
-Copyright (c) 2024-2026 The GPUStack authors
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at [LICENSE](./LICENSE) file for details.
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+```shell
+curl -H "Content-Type: application/json" -u admin:passw0rd http://127.0.0.1:8000/v1/chat/completions \
+  -d '{"max_tokens":64,"model":"Qwen3","messages":[{"role":"user","content":"自我介绍"},{"role":"assistant","content":"提供简洁、高效的回答"}]}'
+```

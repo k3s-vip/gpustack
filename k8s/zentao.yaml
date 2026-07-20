@@ -1,0 +1,59 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: zentao
+  namespace: kube-system
+spec:
+  chart: zentao
+  createNamespace: true
+  failurePolicy: retry
+  insecureSkipTLSVerify: true
+  repo: https://hub.zentao.net/chartrepo/stable
+  serverSide: "false"
+  targetNamespace: kube-public
+  valuesContent: |
+    global:
+      allowOverSold: true
+      cleanPolicy:
+        workflow: true
+      repodomain: hub.zentao.net
+    image:
+      tag: 22.5-20260818-php7
+    ingress:
+      enabled: false
+    mysql:
+      auth:
+        password: pass4zenTao
+        rootPassword: pass4zenTao
+        user: zentao
+      enabled: true
+      image:
+        tag: 5.7-debian-11
+      resources:
+        cpu: 2
+        memory: 2Gi
+      volumes:
+        data:
+          size: 10Gi
+    redis:
+      auth:
+        password: "pass4zenTaoCache"
+      enabled: true
+      image:
+        tag: 6.2-bitnami
+      resources:
+        cpu: 2
+        memory: 2Gi
+      volumes:
+        data:
+          size: 10Gi
+    resources:
+      cpu: 4
+      memory: 4Gi
+    service:
+      enabled: true
+      type: ClusterIP
+    volumes:
+      data:
+        size: 50Gi
+  version: 2026.7.0901

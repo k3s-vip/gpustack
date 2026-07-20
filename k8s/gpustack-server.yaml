@@ -1,0 +1,365 @@
+---
+# Source: templates/server-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpustack-server
+  namespace: gpustack-system
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-server-ingressclass-viewer
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingressclasses"]
+    verbs: ["get", "list", "watch"]
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-server-higress-operations
+rules:
+  - apiGroups: ["networking.higress.io"]
+    resources: ["mcpbridges"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["extensions.higress.io"]
+    resources: ["wasmplugins"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.istio.io"]
+    resources: ["envoyfilters"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-server-ingressclass-viewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-server-ingressclass-viewer
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-server
+    namespace: gpustack-system
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-server-higress-operations-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-server-higress-operations
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-server
+    namespace: gpustack-system
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gpustack-server
+  namespace: gpustack-system
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets", "services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+# Source: templates/server-rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gpustack-server-binding
+  namespace: gpustack-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gpustack-server
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-server
+    namespace: gpustack-system
+---
+# Source: templates/higress-plugins-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpustack-higress-plugins
+  namespace: gpustack-system
+spec:
+  ports:
+    - name: http
+      port: 8080
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: gpustack-higress-plugins
+  type: ClusterIP
+---
+# Source: templates/server-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "10161"
+    prometheus.io/scrape: "true"
+  name: gpustack-server
+  namespace: gpustack-system
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: 30080
+      protocol: TCP
+      targetPort: http
+    - name: metrics
+      port: 10161
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app: gpustack-server
+  type: ClusterIP
+---
+# Source: templates/server-service.yaml
+# ClusterIP service with a stable virtual IP for the server. Used as the
+# service discovery target for both the Ingress backend and the gateway
+# ext-auth MCP bridge registry, so that kube-proxy routes traffic only to
+# ready endpoints and switchover between StatefulSet pods is handled
+# automatically (unlike the headless service above, which resolves to raw
+# pod IPs that can go stale during a rollover/failover).
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpustack-server-cluster-ip
+  namespace: gpustack-system
+spec:
+  ports:
+    - name: http
+      port: 30080
+      protocol: TCP
+      targetPort: http
+    - name: metrics
+      port: 10161
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app: gpustack-server
+  type: ClusterIP
+---
+# Source: templates/higress-plugins-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpustack-higress-plugins
+  namespace: gpustack-system
+spec:
+  selector:
+    matchLabels:
+      app: gpustack-higress-plugins
+  template:
+    metadata:
+      labels:
+        app: gpustack-higress-plugins
+    spec:
+      containers:
+        - image: gpustack/higress-plugins:0.3.0
+          imagePullPolicy: IfNotPresent
+          name: higress-plugins
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+# Source: templates/server-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gpustack-server
+  namespace: gpustack-system
+spec:
+  selector:
+    matchLabels:
+      app: gpustack-server
+  serviceName: gpustack-server
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "10161"
+        prometheus.io/scrape: "true"
+      labels:
+        app: gpustack-server
+    spec:
+      containers:
+        - command:
+            - bash
+            - -ce
+            - |
+              until python -c 'import os,psycopg2;cursor=psycopg2.connect(os.getenv("GPUSTACK_DATABASE_URL","postgresql://root:gpustack@127.0.0.1:5432/gpustack"),connect_timeout=3).cursor();print(cursor.connection.server_version)'; do sleep $((2**++c)); done
+              #python -c 'import os,psycopg2;cursor=psycopg2.connect(os.getenv("GPUSTACK_DATABASE_URL","postgresql://root:gpustack@127.0.0.1:5432/gpustack"),connect_timeout=3).cursor();cursor.execute("SELECT config,api_tokens FROM model_providers;");print(cursor.fetchall())'
+              PYTHON_GPUSTACK=/usr/local/lib/python$PYTHON_VERSION/dist-packages/gpustack
+              f=$PYTHON_GPUSTACK/utils/network.py
+              sed -i "s~8.8.8.8~1.2.4.8~g;s~2001:4860:4860::8888~2001:dc7:1000::1~g" "$f"
+              f=$PYTHON_GPUSTACK/cmd/images.py
+              sed -i -E 's~(higress_version = ).+~\1"2.1.11"~g' "$f"
+              exec /usr/bin/entrypoint.sh --gateway-concurrency=`nproc`
+          env: # https://github.com/gpustack/gpustack/blob/main/gpustack/cmd/start.py
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: GPUSTACK_API_PORT
+              value: "30080"
+            - name: GPUSTACK_BOOTSTRAP_PASSWORD
+              value: passw0rd
+            - name: GPUSTACK_DATABASE_URL
+              value: postgresql://gpustack:gpustack@postgres-gpustack:5432/gpustack
+            - name: GPUSTACK_DEFAULT_CLUSTER_KUBERNETES
+              value: "true"
+            - name: GPUSTACK_DISABLE_BUILTIN_OBSERVABILITY
+              value: "false"
+            - name: GPUSTACK_DISABLE_OPENAPI_DOCS
+              value: "true"
+            - name: GPUSTACK_DISABLE_UPDATE_CHECK
+              value: "true"
+            - name: GPUSTACK_DISABLE_WORKER
+              value: "true"
+            - name: GPUSTACK_GATEWAY_INGRESS_CLASS
+              value: "higress"
+            - name: GPUSTACK_GATEWAY_MIRROR_INGRESS_NAME
+              value: "default"
+            - name: GPUSTACK_GATEWAY_MODE
+              value: incluster
+            - name: GPUSTACK_METRICS_PORT
+              value: "10161"
+            - name: GPUSTACK_GATEWAY_NAMESPACE
+              value: "higress-system"
+            - name: GPUSTACK_GATEWAY_PLUGIN_SERVER_URL
+              value: http://gpustack-higress-plugins.$(POD_NAMESPACE).svc:8080
+            - name: GPUSTACK_JWT_SECRET_KEY
+              value: abcdefghijklmnopqrstuvwxyz260731
+            - name: GPUSTACK_PORT
+              value: "8000"
+            - name: GPUSTACK_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: GPUSTACK_SERVICE_DISCOVERY_NAME
+              value: "gpustack-server-cluster-ip"
+            - name: GPUSTACK_SYSTEM_DEFAULT_CONTAINER_REGISTRY
+              value: swr.cn-south-1.myhuaweicloud.com
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          name: gpustack-server
+          ports:
+            - containerPort: 30080
+              name: http
+            - containerPort: 10161
+              name: metrics
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+          resources:
+            limits:
+              cpu: 4
+              memory: 4Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 2
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: data
+            - mountPath: /var/lib/gpustack/cache
+              name: models
+          workingDir: /var/lib/gpustack
+      dnsPolicy: ClusterFirstWithHostNet
+      enableServiceLinks: false
+      hostNetwork: false
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccount: gpustack-server
+      shareProcessNamespace: false # s6-overlay-suexec: fatal: can only run as pid 1
+      topologySpreadConstraints:
+        - labelSelector:
+            matchLabels:
+              app: gpustack-server
+          maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+      volumes:
+        - hostPath:
+            path: /var/lib/gpustack
+            type: DirectoryOrCreate
+          name: data
+        - hostPath:
+            path: /var/lib/gpustack_offline_models
+            type: DirectoryOrCreate
+          name: models
+---
+# Source: templates/server-service.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: default
+  namespace: gpustack-system # service_namespace_prefix(gpustack/gateway/__init__.py)
+spec:
+  ingressClassName: higress
+  rules:
+    - http:
+        paths:
+          - backend:
+              service:
+                name: gpustack-server-cluster-ip
+                port:
+                  number: 30080
+            path: /
+            pathType: Prefix

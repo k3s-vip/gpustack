@@ -1,0 +1,194 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "10161"
+    prometheus.io/scrape: "true"
+  name: gpustack-server
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      port: 30080
+      protocol: TCP
+      targetPort: http
+    - name: metrics
+      port: 10161
+      protocol: TCP
+      targetPort: metrics
+  selector:
+    app: gpustack-server
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpustack-server
+spec:
+  selector:
+    matchLabels:
+      app: gpustack-server
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "10161"
+        prometheus.io/scrape: "true"
+      labels:
+        app: gpustack-server
+    spec:
+      containers:
+        - command:
+            - bash
+            - -ce
+            - |
+              cd bin
+              cp -a *_tmpl.json golang-filter.so /var/lib/istio/envoy/
+              cp -a apiserver higress pilot-discovery pilot-agent envoy supercronic-*-* /usr/local/bin/
+              PYTHON_GPUSTACK=/usr/local/lib/python$PYTHON_VERSION/dist-packages/gpustack
+              f=$PYTHON_GPUSTACK/utils/network.py
+              sed -i "s~8.8.8.8~1.2.4.8~g;s~2001:4860:4860::8888~2001:dc7:1000::1~g" "$f"
+              f=$PYTHON_GPUSTACK/cmd/images.py
+              sed -i -E 's~(higress_version = ).+~\1"2.1.11"~g' "$f"
+              exec /usr/bin/entrypoint.sh --gateway-concurrency=`nproc`
+          env: # https://github.com/gpustack/gpustack/blob/main/gpustack/cmd/start.py
+            - name: GPUSTACK_API_PORT
+              value: "30080"
+            - name: GPUSTACK_BOOTSTRAP_PASSWORD
+              value: passw0rd
+            - name: GPUSTACK_DISABLE_BUILTIN_OBSERVABILITY
+              value: "false"
+            - name: GPUSTACK_DISABLE_OPENAPI_DOCS
+              value: "true"
+            - name: GPUSTACK_DISABLE_UPDATE_CHECK
+              value: "true"
+            - name: GPUSTACK_DISABLE_WORKER
+              value: "true"
+            - name: GPUSTACK_GATEWAY_MODE
+              value: embedded
+            - name: GPUSTACK_METRICS_PORT
+              value: "10161"
+            - name: GPUSTACK_JWT_SECRET_KEY
+              value: abcdefghijklmnopqrstuvwxyz260731
+            - name: GPUSTACK_PORT
+              value: "8000"
+            - name: GPUSTACK_SERVER_ID
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: GPUSTACK_SYSTEM_DEFAULT_CONTAINER_REGISTRY
+              value: swr.cn-south-1.myhuaweicloud.com
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          name: gpustack-server
+          ports:
+            - containerPort: 30080
+              name: http
+            - containerPort: 10161
+              name: metrics
+          readinessProbe:
+            httpGet:
+              host: 127.0.0.1
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+          resources:
+            limits:
+              cpu: 4
+              memory: 4Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: false
+          startupProbe:
+            failureThreshold: 30
+            httpGet:
+              host: 127.0.0.1
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 2
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: data
+            - mountPath: /var/lib/gpustack/cache
+              name: models
+          workingDir: /var/lib/gpustack
+      dnsPolicy: ClusterFirstWithHostNet
+      enableServiceLinks: false
+      hostNetwork: true
+      initContainers:
+        - command:
+            - sh
+            - -ce
+            - cp -ua /apiserver . && chown -R 1337:1337 . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/api-server:latest
+          name: api-server
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -ua /usr/local/bin/higress . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/higress:v2.1.11
+          name: higress
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -ua /usr/local/bin/pilot-discovery . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/pilot:v2.1.11
+          name: pilot
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: bin
+          workingDir: /data
+        - command:
+            - sh
+            - -ce
+            - cp -ua /usr/local/bin/pilot-agent /usr/local/bin/envoy /usr/local/bin/supercronic-*-* /var/lib/istio/envoy/* . || sleep inf
+          image: higress-registry.cn-hangzhou.cr.aliyuncs.com/higress/gateway:v2.1.11
+          name: gateway
+          volumeMounts:
+            - mountPath: /data
+              name: data
+              subPath: bin
+          workingDir: /data
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccount: default
+      shareProcessNamespace: false # s6-overlay-suexec: fatal: can only run as pid 1
+      volumes:
+        - hostPath:
+            path: /var/lib/gpustack
+            type: DirectoryOrCreate
+          name: data
+        - hostPath:
+            path: /var/lib/gpustack_offline_models
+            type: DirectoryOrCreate
+          name: models

@@ -1,0 +1,79 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: postgres-operator
+  namespace: kube-system
+spec:
+  chart: postgres-operator
+  createNamespace: true
+  failurePolicy: retry
+  insecureSkipTLSVerify: true
+  repo: https://opensource.zalando.com/postgres-operator/charts/postgres-operator
+  targetNamespace: postgres
+  valuesContent: |
+    configConnectionPooler:
+      connection_pooler_default_cpu_limit: "2"
+      connection_pooler_default_cpu_request: 500m
+      connection_pooler_default_memory_limit: 1Gi
+      connection_pooler_default_memory_request: 100Mi
+      connection_pooler_image: docker.io/muicoder/pgbouncer:v2.0.2
+      connection_pooler_max_db_connections: 100
+      connection_pooler_mode: session
+      connection_pooler_schema: pooler
+      connection_pooler_user: pooler
+    configGeneral:
+      docker_image: docker.io/muicoder/spilo-18:4.1-p2
+      enable_spilo_wal_path_compat: true
+      kubernetes_use_configmaps: true
+      max_instances: 3
+    configKubernetes:
+      additional_pod_capabilities:
+        - SYS_NICE
+      enable_persistent_volume_claim_deletion: false
+      enable_pod_antiaffinity: true
+      enable_pod_disruption_budget: true
+      enable_readiness_probe: true
+      pod_antiaffinity_preferred_during_scheduling: true
+      secret_name_template: '{username}.{cluster}.credentials'
+      spilo_fsgroup: 103
+      spilo_runasgroup: 103
+      spilo_runasuser: 101
+      watched_namespace: '*'
+    configLoadBalancer:
+      enable_master_load_balancer: false
+      enable_master_pooler_load_balancer: false
+      enable_replica_load_balancer: false
+      enable_replica_pooler_load_balancer: false
+    configLogicalBackup:
+      logical_backup_docker_image: docker.io/muicoder/logical-backup:v2.0.2
+      logical_backup_s3_access_key_id: "minioadmin"
+      logical_backup_s3_bucket: "postgres-backup"
+      logical_backup_s3_endpoint: "http://minio.minio-operator"
+      logical_backup_s3_retention_time: "3 days"
+      logical_backup_s3_secret_access_key: "minioadmin"
+      logical_backup_s3_sse: ""
+      logical_backup_schedule: "15 5 * * *"
+    configPatroni:
+      enable_patroni_failsafe_mode: true
+    configPostgresPodResources:
+      default_cpu_limit: "4"
+      default_cpu_request: 100m
+      default_memory_limit: 8Gi
+      default_memory_request: 100Mi
+      max_cpu_request: "16"
+      max_memory_request: 32Gi
+      min_cpu_limit: 250m
+      min_memory_limit: 250Mi
+    configTeamsApi:
+      enable_teams_api: false
+    configUsers:
+      enable_password_rotation: false
+    controllerID:
+      create: true
+      name: postgres-operator
+    image:
+      registry: docker.io
+      repository: muicoder/postgres-operator
+    nodeSelector:
+      operator: ""
+  version: 2.0.2
