@@ -1,0 +1,112 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: gpustack-operator
+  namespace: kube-system
+spec:
+  chart: gpustack-operator
+  createNamespace: true
+  failurePolicy: abort
+  insecureSkipTLSVerify: true
+  repo: https://docs.gpustack.ai/gpustack-operator/charts
+  targetNamespace: gpustack-system
+  valuesContent: |
+    cleanupOnUninstall: false
+    csi-driver-nfs:
+      controller:
+        nodeSelector:
+          operator: ""
+      enabled: true
+      image:
+        nfs:
+          repository: /muicoder/nfsplugin
+          tag: v4.13.6
+        csiProvisioner:
+          repository: /muicoder/csi-provisioner
+          tag: v5.3.0
+        csiResizer:
+          repository: /muicoder/csi-resizer
+          tag: v2.2.1
+        csiSnapshotter:
+          repository: /muicoder/csi-snapshotter
+          tag: v8.7.0
+        livenessProbe:
+          repository: /muicoder/livenessprobe
+          tag: v2.20.0
+        nodeDriverRegistrar:
+          repository: /muicoder/csi-node-driver-registrar
+          tag: v2.18.0
+    csi-driver-s3:
+      controller:
+        nodeSelector:
+          operator: ""
+      enabled: true
+      images:
+        s3: docker.io/thxcode/csi-s3-driver:v0.43.7
+        csiProvisioner: docker.io/muicoder/csi-provisioner:v5.3.0
+        livenessProbe: docker.io/muicoder/livenessprobe:v2.20.0
+        nodeDriverRegistrar: docker.io/muicoder/csi-node-driver-registrar:v2.18.0
+    deviceManager:
+      containerdConfigDir: /etc/containerd # /var/lib/rancher/k3s/agent/etc/containerd
+      enabled: true
+      networkPolicy:
+        enabled: false
+    global:
+      certmanager:
+        enabled: false
+    image:
+      repository: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack-operator
+    kueue:
+      controllerManager:
+        manager:
+          image:
+            repository: docker.io/muicoder/kueue
+            tag: v0.18.11
+        nodeSelector:
+          operator: ""
+      enabled: true
+    modelManager:
+      enabled: true
+      networkPolicy:
+        enabled: false
+      nodeSelector:
+        feature.gpustack.ai/acceleratable: 'true'
+      registrar:
+        image:
+          repository: docker.io/muicoder/csi-node-driver-registrar
+          tag: v2.18.0
+      rootPath: /var/lib/gpustack/models
+    networkPolicy:
+      enabled: false
+    node-feature-discovery:
+      enabled: true
+      gc:
+        nodeSelector:
+          operator: ""
+      image:
+        repository: docker.io/muicoder/node-feature-discovery
+        tag: v0.20.1
+      master:
+        nodeSelector:
+          operator: ""
+      topologyUpdater:
+        createCRDs: true
+        enable: false
+        nodeSelector:
+          operator: ""
+    resources:
+      limits:
+        cpu: "1"
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+    topograph:
+      enabled: false
+      image:
+        repository: ghcr.io/nvidia/topograph
+        tag: v1.1.0
+    worker:
+      dataDir: /var/lib/gpustack
+      enabled: true
+  version: 0.9.2

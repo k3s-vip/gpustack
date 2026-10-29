@@ -1,0 +1,8 @@
+docker.io/muicoder/kueue:v0.18.11
+docker.io/muicoder/nfsplugin:v4.13.6
+docker.io/muicoder/node-feature-discovery:v0.20.1
+docker.io/thxcode/csi-s3-driver:v0.43.7
+registry.k8s.io/kueue/kueue:v0.18.11
+registry.k8s.io/sig-storage/nfsplugin:v4.13.6
+registry.k8s.io/nfd/node-feature-discovery:v0.20.1
+swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack-operator:v0.9.2

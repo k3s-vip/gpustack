@@ -1,0 +1,423 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gpustack-worker
+  namespace: gpustack-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-worker-ingressclass-viewer
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingressclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-worker-ingressclass-viewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-worker-ingressclass-viewer
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-worker
+    namespace: gpustack-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-worker-runtimeclass-viewer
+rules:
+  - apiGroups: ["node.k8s.io"]
+    resources: ["runtimeclasses"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-worker-runtimeclass-viewer-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-worker-runtimeclass-viewer
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-worker
+    namespace: gpustack-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-worker-pod-cm-creator
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - "pods"
+      - "configmaps"
+      - "secrets"
+      - "services"
+      - "pods/log"
+      - "pods/exec"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "update"
+      - "patch"
+      - "delete"
+      - "deletecollection"
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - "events"
+    verbs:
+      - "get"
+      - "list"
+      - "create"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gpustack-worker-pod-cm-creator-binding
+  namespace: gpustack-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-worker-pod-cm-creator
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-worker
+    namespace: gpustack-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gpustack-worker-workload-api
+rules:
+  - apiGroups:
+      - "worker.gpustack.ai"
+    resources:
+      - "*"
+    verbs:
+      - "*"
+  - apiGroups:
+      - "gpustack.ai"
+    resources:
+      - "settings"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "patch"
+  - apiGroups:
+      - ""
+    resources:
+      - "namespaces"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+      - "create"
+      - "delete"
+  - apiGroups:
+      - "apiregistration.k8s.io"
+    resources:
+      - "apiservices"
+    verbs:
+      - "get"
+      - "list"
+      - "watch"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gpustack-worker-workload-api-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gpustack-worker-workload-api
+subjects:
+  - kind: ServiceAccount
+    name: gpustack-worker
+    namespace: gpustack-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/path: "/metrics"
+    prometheus.io/port: "10151"
+    prometheus.io/scrape: "true"
+  name: gpustack-worker
+  namespace: gpustack-system
+spec:
+  ports:
+    - name: api
+      port: 10150
+      targetPort: 10150
+    - name: metrics
+      port: 10151
+      targetPort: 10151
+  selector:
+    app.kubernetes.io/component: worker
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: gpustack-worker
+    app.kubernetes.io/component: worker
+    gpustack.io/runtime: cpu
+  name: gpustack-worker
+  namespace: gpustack-system
+spec:
+  selector:
+    matchLabels:
+      app: gpustack-worker
+      app.kubernetes.io/component: worker
+      gpustack.io/runtime: cpu
+  template:
+    metadata:
+      labels:
+        app: gpustack-worker
+        app.kubernetes.io/component: worker
+        gpustack.io/runtime: cpu
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: worker
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - env:
+            - name: GPUSTACK_WORKER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_RUNTIME_DEPLOY
+              value: "Kubernetes"
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_DEPLOYMENT
+              value: "true"
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_WORKER_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+          envFrom:
+            - secretRef:
+                name: registration-token
+                optional: true
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          name: gpustack-worker
+          ports:
+            - containerPort: 10150
+              name: api
+              protocol: TCP
+            - containerPort: 10151
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: api
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: gpustack-data-dir
+            - mountPath: /var/run/cdi
+              name: cdi
+            - mountPath: /var/lib/kubelet/device-plugins
+              name: kubelet-device-plugins
+      dnsPolicy: ClusterFirstWithHostNet
+      enableServiceLinks: false
+      hostIPC: true
+      hostNetwork: true
+      nodeSelector:
+        feature.gpustack.ai/acceleratable: "false"
+        kubernetes.io/os: linux
+      serviceAccountName: gpustack-worker
+      volumes:
+        - hostPath:
+            path: /var/lib/gpustack
+            type: DirectoryOrCreate
+          name: gpustack-data-dir
+        - hostPath:
+            path: /var/run/cdi
+            type: DirectoryOrCreate
+          name: cdi
+        - hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: DirectoryOrCreate
+          name: kubelet-device-plugins
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: gpustack-worker-nvidia
+    app.kubernetes.io/component: worker
+    gpustack.io/runtime: nvidia
+  name: gpustack-worker-nvidia
+  namespace: gpustack-system
+spec:
+  selector:
+    matchLabels:
+      app: gpustack-worker-nvidia
+      app.kubernetes.io/component: worker
+      gpustack.io/runtime: nvidia
+  template:
+    metadata:
+      labels:
+        app: gpustack-worker-nvidia
+        app.kubernetes.io/component: worker
+        gpustack.io/runtime: nvidia
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: worker
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - env:
+            - name: GPUSTACK_WORKER_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_RUNTIME_DEPLOY
+              value: "Kubernetes"
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_DEPLOYMENT
+              value: "true"
+            - name: GPUSTACK_RUNTIME_DEPLOY_MIRRORED_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: GPUSTACK_RUNTIME_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: GPUSTACK_WORKER_IP
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: status.hostIP
+            - name: NVIDIA_MIG_CONFIG_DEVICES
+              value: "all"
+            - name: NVIDIA_MIG_MONITOR_DEVICES
+              value: "all"
+          envFrom:
+            - secretRef:
+                name: registration-token
+                optional: true
+          image: swr.cn-south-1.myhuaweicloud.com/gpustack/gpustack:v2.3.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          name: gpustack-worker
+          ports:
+            - containerPort: 10150
+              name: api
+              protocol: TCP
+            - containerPort: 10151
+              name: metrics
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: api
+            initialDelaySeconds: 5
+            timeoutSeconds: 2
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - mountPath: /var/lib/gpustack
+              name: gpustack-data-dir
+            - mountPath: /var/run/cdi
+              name: cdi
+            - mountPath: /var/lib/kubelet/device-plugins
+              name: kubelet-device-plugins
+      dnsPolicy: ClusterFirstWithHostNet
+      enableServiceLinks: false
+      hostIPC: true
+      hostNetwork: true
+      nodeSelector:
+        feature.node.kubernetes.io/pci-10de.present: 'true'
+        kubernetes.io/os: linux
+      runtimeClassName: nvidia
+      serviceAccountName: gpustack-worker
+      volumes:
+        - hostPath:
+            path: /var/lib/gpustack
+            type: DirectoryOrCreate
+          name: gpustack-data-dir
+        - hostPath:
+            path: /var/run/cdi
+            type: DirectoryOrCreate
+          name: cdi
+        - hostPath:
+            path: /var/lib/kubelet/device-plugins
+            type: DirectoryOrCreate
+          name: kubelet-device-plugins
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registration-token
+  namespace: gpustack-system
+stringData: # dependencies: gpustack-operator and higress-core
+  GPUSTACK_SERVER_URL: http://192.168.64.169:8000
+  GPUSTACK_TOKEN: gpustack_x16_y32
+type: Opaque
