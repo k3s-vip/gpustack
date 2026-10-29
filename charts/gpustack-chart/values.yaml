@@ -47,7 +47,7 @@ appliedRevision: ""
 # credentials are provided below, the chart skips creating the canonical
 # Secret to avoid leaving an unused resource behind.
 global:
-  hub: docker.io
+  hub: swr.cn-south-1.myhuaweicloud.com
   imagePullSecrets:
     - name: gpustack-image-pull-secret
   # Default nodeSelector applied to every GPUStack component (server + worker)
@@ -234,7 +234,7 @@ gateway:
 # and ensure gateway.ingressClassname matches your existing Higress instance.
 # Full list of available values: https://higress.io/helm-charts
 higress-core:
-  enabled: true
+  enabled: false
   global:
     # Must match gateway.ingressClassname above
     ingressClass: higress
