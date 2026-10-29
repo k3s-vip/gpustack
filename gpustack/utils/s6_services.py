@@ -77,19 +77,20 @@ gateway_services = S6Services(
     support_pipeline=True,
 )
 postgres_services = S6Services(
-    S6Service("postgres", ["database_port"], True),
+    S6Service("postgres", ["database_port"], True),  # 5432
 )
 migration_services = S6Services(
     S6Service("gpustack-migration", [], True, False),
 )
 observability_services = S6Services(
-    S6Service("grafana", ["builtin_grafana_port"]),
-    S6Service("prometheus", ["builtin_prometheus_port"]),
+    S6Service("grafana", ["builtin_grafana_port"]),  # 13000
+    S6Service("prometheus", ["builtin_prometheus_port"]),  # 19090
     support_pipeline=True,
 )
 
 
 def all_services() -> List[str]:
+    # check_ports_availability
     return [
         *gateway_services.all_services(),
         *postgres_services.all_services(),
